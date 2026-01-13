@@ -77,12 +77,7 @@ public class DriveSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
-    // Add it to your pose estimator
-    m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.5, .5, 9999999));
-    m_poseEstimator.addVisionMeasurement(
-    limelightMeasurement.pose,
-    limelightMeasurement.timestampSeconds
-    );
+
     // Update the pose estimator in the periodic block
     m_poseEstimator.update(
         Rotation2d.fromDegrees(getHeading()),
@@ -92,6 +87,17 @@ public class DriveSubsystem extends SubsystemBase {
             m_rearLeft.getPosition(),
             m_rearRight.getPosition()
         });
+    if (limelightMeasurement == null) {
+      
+    }else {
+      // Add it to your pose estimator
+      m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.5, .5, 9999999));
+      m_poseEstimator.addVisionMeasurement(
+      limelightMeasurement.pose,
+      limelightMeasurement.timestampSeconds
+    );
+    }
+
   }
 
   /**
@@ -100,6 +106,9 @@ public class DriveSubsystem extends SubsystemBase {
    * @return The pose.
    */
   public Pose2d getPose() {
+    if (m_poseEstimator == null) {
+      return new Pose2d();
+    }
     return m_poseEstimator.getEstimatedPosition();
   }
 
