@@ -9,6 +9,9 @@ import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import com.studica.frc.AHRS;
 import com.studica.frc.AHRS.NavXComType;
+
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -19,6 +22,7 @@ import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.ADIS16470_IMU.IMUAxis;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.LimelightHelpers;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 public class DriveSubsystem extends SubsystemBase {
@@ -46,27 +50,41 @@ public class DriveSubsystem extends SubsystemBase {
   // The gyro sensor
   private final AHRS m_gyro = new AHRS(NavXComType.kMXP_SPI);
 
-  // Odometry class for tracking robot pose
-  SwerveDriveOdometry m_odometry = new SwerveDriveOdometry(
-      DriveConstants.kDriveKinematics,
-      Rotation2d.fromDegrees(getHeading()),
-      new SwerveModulePosition[] {
-          m_frontLeft.getPosition(),
-          m_frontRight.getPosition(),
-          m_rearLeft.getPosition(),
-          m_rearRight.getPosition()
-      });
+  LimelightHelpers.PoseEstimate limelightMeasurement;
+
+  SwerveDrivePoseEstimator m_poseEstimator = new SwerveDrivePoseEstimator(
+    DriveConstants.kDriveKinematics,
+    Rotation2d.fromDegrees(getHeading()),
+    new SwerveModulePosition[] {
+        m_frontLeft.getPosition(),
+        m_frontRight.getPosition(),
+        m_rearLeft.getPosition(),
+        m_rearRight.getPosition()
+    },
+    getPose());
 
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
     // Usage reporting for MAXSwerve template
     HAL.report(tResourceType.kResourceType_RobotDrive, tInstances.kRobotDriveSwerve_MaxSwerve);
+
+    LimelightHelpers.SetRobotOrientation("", getHeading(), 0.0, 0.0, 0.0, 0.0, 0.0);
+
+    // Get the pose estimate
+    limelightMeasurement = LimelightHelpers.getBotPoseEstimate_wpiBlue("");
   }
+
 
   @Override
   public void periodic() {
-    // Update the odometry in the periodic block
-    m_odometry.update(
+    // Add it to your pose estimator
+    m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.5, .5, 9999999));
+    m_poseEstimator.addVisionMeasurement(
+    limelightMeasurement.pose,
+    limelightMeasurement.timestampSeconds
+    );
+    // Update the pose estimator in the periodic block
+    m_poseEstimator.update(
         Rotation2d.fromDegrees(getHeading()),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
@@ -82,7 +100,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @return The pose.
    */
   public Pose2d getPose() {
-    return m_odometry.getPoseMeters();
+    return m_poseEstimator.getEstimatedPosition();
   }
 
   /**
@@ -91,7 +109,7 @@ public class DriveSubsystem extends SubsystemBase {
    * @param pose The pose to which to set the odometry.
    */
   public void resetOdometry(Pose2d pose) {
-    m_odometry.resetPosition(
+    m_poseEstimator.resetPosition(
         Rotation2d.fromDegrees(getHeading()),
         new SwerveModulePosition[] {
             m_frontLeft.getPosition(),
