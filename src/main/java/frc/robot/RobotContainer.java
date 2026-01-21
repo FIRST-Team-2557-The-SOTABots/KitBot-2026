@@ -19,12 +19,19 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.PS4Controller.Button;
 import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
+import frc.robot.Constants.FuelConstants;
 import frc.robot.Constants.OIConstants;
+import frc.robot.commands.Drive;
+import frc.robot.commands.Eject;
+import frc.robot.commands.Intake;
+import frc.robot.commands.LaunchSequence;
 import frc.robot.subsystems.DriveSubsystem;
+import frc.robot.subsystems.FuelSubsystem;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import java.util.List;
 
@@ -40,10 +47,11 @@ public class RobotContainer {
   private final SendableChooser<Command> autoChooser;
   
   // The robot's subsystems
-  private final DriveSubsystem m_robotDrive = new DriveSubsystem();
+  private final DriveSubsystem driveSubsystem = new DriveSubsystem();
+  private final FuelSubsystem fuelSubsystem = new FuelSubsystem();
 
   // The driver's controller
-  XboxController m_driverController = new XboxController(OIConstants.kDriverControllerPort);
+  CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerPort);
 
   /**
    * The container for the robot. Contains subsystems, OI devices, and commands.
@@ -53,16 +61,16 @@ public class RobotContainer {
     configureButtonBindings();
 
     // Configure default commands
-    m_robotDrive.setDefaultCommand(
+    driveSubsystem.setDefaultCommand(
         // The left stick controls translation of the robot.
         // Turning is controlled by the X axis of the right stick.
         new RunCommand(
-            () -> m_robotDrive.drive(
+            () -> driveSubsystem.drive(
                 -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband),
                 -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband),
                 -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband),
                 true),
-            m_robotDrive));
+            driveSubsystem));
     // For convenience a programmer could change this when going to competition.
     boolean isCompetition = true;
 
@@ -89,15 +97,23 @@ public class RobotContainer {
    * {@link JoystickButton}.
    */
   private void configureButtonBindings() {
-    new JoystickButton(m_driverController, Button.kR1.value)
-        .whileTrue(new RunCommand(
-            () -> m_robotDrive.setX(),
-            m_robotDrive));
+     // While the left bumper on operator controller is held, intake Fuel
+    m_driverController.leftBumper().whileTrue(new Intake(fuelSubsystem));
+    // While the right bumper on the operator controller is held, spin up for 1
+    // second, then launch fuel. When the button is released, stop.
+    m_driverController.rightBumper().whileTrue(new LaunchSequence(fuelSubsystem));
+    // While the A button is held on the operator controller, eject fuel back out
+    // the intake
+    m_driverController.a().whileTrue(new Eject(fuelSubsystem));
 
-    new JoystickButton(m_driverController, XboxController.Button.kStart.value)
-        .onTrue(new InstantCommand(
-            () -> m_robotDrive.zeroHeading(),
-            m_robotDrive));
+    // Set the default command for the drive subsystem to the command provided by
+    // factory with the values provided by the joystick axes on the driver
+    // controller. The Y axis of the controller is inverted so that pushing the
+    // stick away from you (a negative value) drives the robot forwards (a positive
+    // value)
+    driveSubsystem.setDefaultCommand(new Drive(driveSubsystem, m_driverController));
+
+    fuelSubsystem.setDefaultCommand(fuelSubsystem.run(() -> fuelSubsystem.stop()));
   }
 
   /**
