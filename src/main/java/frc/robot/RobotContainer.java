@@ -21,13 +21,10 @@ import frc.robot.Constants.AutoConstants;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.Constants.FuelConstants;
 import frc.robot.Constants.OIConstants;
-import frc.robot.commands.Drive;
-import frc.robot.commands.Eject;
-import frc.robot.commands.Intake;
-import frc.robot.commands.LaunchSequence;
 import frc.robot.subsystems.DriveSubsystem;
 import frc.robot.subsystems.FuelSubsystem;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.SwerveControllerCommand;
@@ -97,23 +94,21 @@ public class RobotContainer {
    * {@link JoystickButton}.
    */
   private void configureButtonBindings() {
-     // While the left bumper on operator controller is held, intake Fuel
-    m_driverController.leftBumper().whileTrue(new Intake(fuelSubsystem));
-    // While the right bumper on the operator controller is held, spin up for 1
-    // second, then launch fuel. When the button is released, stop.
-    m_driverController.rightBumper().whileTrue(new LaunchSequence(fuelSubsystem));
-    // While the A button is held on the operator controller, eject fuel back out
-    // the intake
-    m_driverController.a().whileTrue(new Eject(fuelSubsystem));
+    //eject control
+    m_driverController.a().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(FuelConstants.INTAKING_INTAKE_VOLTAGE, FuelConstants.INTAKING_FEEDER_VOLTAGE ), fuelSubsystem))
+    .onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));
+    
+    //shoot control
+    m_driverController.rightBumper().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(-FuelConstants.LAUNCHING_LAUNCHER_VOLTAGE, -FuelConstants.LAUNCHING_FEEDER_VOLTAGE), fuelSubsystem))
+    .onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));
 
-    // Set the default command for the drive subsystem to the command provided by
-    // factory with the values provided by the joystick axes on the driver
-    // controller. The Y axis of the controller is inverted so that pushing the
-    // stick away from you (a negative value) drives the robot forwards (a positive
-    // value)
-    driveSubsystem.setDefaultCommand(new Drive(driveSubsystem, m_driverController));
+    //intake control
+    m_driverController.leftBumper().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(-FuelConstants.INTAKING_INTAKE_VOLTAGE, -FuelConstants.INTAKING_FEEDER_VOLTAGE ), fuelSubsystem))
+    .onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));
 
-    fuelSubsystem.setDefaultCommand(fuelSubsystem.run(() -> fuelSubsystem.stop()));
+    //reset gyro
+    m_driverController.start().onTrue(Commands.runOnce(() -> driveSubsystem.zeroHeading()));
+    
   }
 
   /**
