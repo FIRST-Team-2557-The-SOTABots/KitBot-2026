@@ -52,7 +52,7 @@ public class MAXSwerveModule {
     TalonFXConfiguration drivingConfig = new TalonFXConfiguration();
     
     // Configure PID values for velocity control
-    drivingConfig.Slot0.kP = 0.6; // Adjust these values for your robot
+    drivingConfig.Slot0.kP = 0.02; // Adjust these values for your robot
     drivingConfig.Slot0.kI = 0.0;
     drivingConfig.Slot0.kD = 0.0;
     drivingConfig.Slot0.kV = 0.12; // Feedforward gain
@@ -122,7 +122,7 @@ public class MAXSwerveModule {
 
     // Command driving TalonFX and turning SPARK towards their respective setpoints.
     // Note: You'll need to convert speedMetersPerSecond to rotations per second based on your wheel diameter and gear ratio
-    m_drivingTalonFX.setControl(m_drivingVelocityRequest.withVelocity(correctedDesiredState.speedMetersPerSecond));
+    m_drivingTalonFX.setControl(m_drivingVelocityRequest.withVelocity(correctedDesiredState.speedMetersPerSecond*10.47));
     m_turningClosedLoopController.setSetpoint(correctedDesiredState.angle.getRadians(), ControlType.kPosition);
 
     m_desiredState = desiredState;
