@@ -52,7 +52,7 @@ public class MAXSwerveModule {
     TalonFXConfiguration drivingConfig = new TalonFXConfiguration();
     
     // Configure PID values for velocity control
-    drivingConfig.Slot0.kP = 0.3; // Adjust these values for your robot
+    drivingConfig.Slot0.kP = 0.6; // Adjust these values for your robot
     drivingConfig.Slot0.kI = 0.0;
     drivingConfig.Slot0.kD = 0.0;
     drivingConfig.Slot0.kV = 0.12; // Feedforward gain

@@ -40,4 +40,50 @@ import com.pathplanner.lib.auto.AutoBuilder;
  * periodic methods (other than the scheduler calls).  Instead, the structure of the robot
  * (including subsystems, commands, and button mappings) should be declared here.
  */
-public class RobotContainer {private final SendableChooser<Command> autoChooser;private final DriveSubsystem driveSubsystem = new DriveSubsystem();private final FuelSubsystem fuelSubsystem = new FuelSubsystem();CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerPort);public RobotContainer() {configureButtonBindings();driveSubsystem.setDefaultCommand(new RunCommand(() -> driveSubsystem.drive(-MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband),-MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband),-MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband),true),driveSubsystem));boolean isCompetition = false;autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier((stream) -> isCompetition? stream.filter(auto -> auto.getName().startsWith("comp")): stream);SmartDashboard.putData("Auto Chooser", autoChooser);}private void configureButtonBindings() {m_driverController.a().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(FuelConstants.INTAKING_INTAKE_VOLTAGE, FuelConstants.INTAKING_FEEDER_VOLTAGE ), fuelSubsystem)).onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));m_driverController.rightBumper().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(-FuelConstants.LAUNCHING_LAUNCHER_VOLTAGE, -FuelConstants.LAUNCHING_FEEDER_VOLTAGE), fuelSubsystem)).onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));m_driverController.leftBumper().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(-FuelConstants.INTAKING_INTAKE_VOLTAGE, -FuelConstants.INTAKING_FEEDER_VOLTAGE ), fuelSubsystem)).onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));m_driverController.start().onTrue(Commands.runOnce(() -> driveSubsystem.zeroHeading()));}public Command getAutonomousCommand() {return autoChooser.getSelected();}}
+public class RobotContainer {
+    private final SendableChooser<Command> autoChooser;
+    private final DriveSubsystem driveSubsystem = new DriveSubsystem();
+    private final FuelSubsystem fuelSubsystem = new FuelSubsystem();
+    CommandXboxController m_driverController = new CommandXboxController(OIConstants.kDriverControllerPort);
+    
+    public RobotContainer() {configureButtonBindings();
+        driveSubsystem.setDefaultCommand(new RunCommand(() -> driveSubsystem
+        .drive(
+            -MathUtil.applyDeadband(m_driverController.getLeftY(), OIConstants.kDriveDeadband),
+            -MathUtil.applyDeadband(m_driverController.getLeftX(), OIConstants.kDriveDeadband),
+            -MathUtil.applyDeadband(m_driverController.getRightX(), OIConstants.kDriveDeadband),
+            true),
+        driveSubsystem));
+        
+        boolean isCompetition = false;
+        
+        autoChooser = AutoBuilder.buildAutoChooserWithOptionsModifier((stream) -> isCompetition
+            ? stream.filter(auto -> auto.getName().startsWith("comp"))
+            : stream
+        );
+            SmartDashboard.putData("Auto Chooser", autoChooser);
+        }
+        
+    private void configureButtonBindings() {
+        m_driverController.a().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(
+FuelConstants.INTAKING_INTAKE_VOLTAGE, FuelConstants.INTAKING_FEEDER_VOLTAGE ), fuelSubsystem))
+    .onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));
+        
+    
+        m_driverController.rightBumper().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(
+-FuelConstants.LAUNCHING_LAUNCHER_VOLTAGE, -FuelConstants.LAUNCHING_FEEDER_VOLTAGE), fuelSubsystem))
+    .onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));
+    
+    
+        m_driverController.leftBumper().onTrue(new RunCommand(() -> fuelSubsystem.setVoltage(-FuelConstants.INTAKING_INTAKE_VOLTAGE, 
+-FuelConstants.INTAKING_FEEDER_VOLTAGE ), fuelSubsystem))
+        .onFalse(new RunCommand(() -> fuelSubsystem.setVoltage(0,0), fuelSubsystem));
+        
+        m_driverController.start().onTrue(Commands.runOnce(() -> driveSubsystem.zeroHeading()));
+    
+    }
+    
+    public Command getAutonomousCommand() {
+        return autoChooser.getSelected();
+    }
+}
