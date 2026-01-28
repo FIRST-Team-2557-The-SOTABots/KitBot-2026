@@ -532,7 +532,7 @@ public class LimelightHelpers {
      */
     public static class PoseEstimate {
         public Pose2d pose;
-        public double timestampSeconds;
+        public static double timestampSeconds;
         public double latency;
         public int tagCount;
         public double tagSpan;

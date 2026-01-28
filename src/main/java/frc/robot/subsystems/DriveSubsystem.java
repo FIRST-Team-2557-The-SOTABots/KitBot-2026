@@ -20,6 +20,7 @@ import com.studica.frc.AHRS.NavXComType;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.estimator.PoseEstimator;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -35,6 +36,7 @@ import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.ADIS16470_IMU;
 import edu.wpi.first.wpilibj.ADIS16470_IMU.IMUAxis;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
 import frc.robot.LimelightHelpers;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -42,13 +44,8 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 
 public class DriveSubsystem extends SubsystemBase {
-Pose2d poseA = new Pose2d();
-Pose2d poseB = new Pose2d();
-
-StructPublisher<Pose2d> publisher = NetworkTableInstance.getDefault()
+  StructPublisher<Pose2d> publisher = NetworkTableInstance.getDefault()
   .getStructTopic("MyPose", Pose2d.struct).publish();
-StructArrayPublisher<Pose2d> arrayPublisher = NetworkTableInstance.getDefault()
-  .getStructArrayTopic("MyPoseArray", Pose2d.struct).publish();
 
   private RobotConfig config;
 
@@ -149,12 +146,9 @@ StructArrayPublisher<Pose2d> arrayPublisher = NetworkTableInstance.getDefault()
 
 
   @Override
-  public void periodic() {
+public void periodic() {
 
-    publisher.set(poseA);
-    arrayPublisher.set(new Pose2d[] {poseA, poseB});
-
-    // Update the pose estimator in the periodic block
+    // Update odometry
     m_poseEstimator.update(
         Rotation2d.fromDegrees(getHeading()),
         new SwerveModulePosition[] {
@@ -162,20 +156,46 @@ StructArrayPublisher<Pose2d> arrayPublisher = NetworkTableInstance.getDefault()
             m_frontRight.getPosition(),
             m_rearLeft.getPosition(),
             m_rearRight.getPosition()
-        });
-    if (limelightMeasurement == null) {
-      
-    }else {
-      // Add it to your pose estimator
-      m_poseEstimator.setVisionMeasurementStdDevs(VecBuilder.fill(.5, .5, 9999999));
-      m_poseEstimator.addVisionMeasurement(
-      limelightMeasurement.pose,
-      limelightMeasurement.timestampSeconds
+        }
     );
-    poseA = limelightMeasurement.pose;
+
+    if (LimelightHelpers.getTV("limelight-rebuilt")) {
+
+        // REQUIRED for MegaTag2
+        LimelightHelpers.SetRobotOrientation(
+            "limelight-rebuilt",
+            getHeading(),
+            0, 0, 0, 0, 0
+        );
+
+        LimelightHelpers.PoseEstimate estimate =
+            LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight-rebuilt");
+
+        boolean reject = false;
+
+        if (Math.abs(m_gyro.getRate()) > 360) reject = true;
+        if (estimate == null || estimate.tagCount == 0) reject = true;
+
+        if (!reject) {
+            m_poseEstimator.setVisionMeasurementStdDevs(
+                VecBuilder.fill(0.7, 0.7, 9999999)
+            );
+
+            m_poseEstimator.addVisionMeasurement(
+                estimate.pose,
+                estimate.timestampSeconds
+            );
+
+            publisher.set(estimate.pose);
+        }
     }
 
-  }
+    SmartDashboard.putBoolean(
+        "LL Has Target",
+        LimelightHelpers.getTV("limelight-rebuilt")
+    );
+}
+
 
   /**
    * Returns the currently-estimated pose of the robot.
@@ -195,6 +215,7 @@ StructArrayPublisher<Pose2d> arrayPublisher = NetworkTableInstance.getDefault()
    * @param pose The pose to which to set the odometry.
    */
   public void resetPose(Pose2d pose) {
+    m_gyro.reset();
     m_poseEstimator.resetPosition(
         Rotation2d.fromDegrees(getHeading()),
         new SwerveModulePosition[] {
@@ -203,42 +224,45 @@ StructArrayPublisher<Pose2d> arrayPublisher = NetworkTableInstance.getDefault()
             m_rearLeft.getPosition(),
             m_rearRight.getPosition()
         },
-        pose);
-  }
-
-  public void turnToFieldPoint(double x, double y) {
-    Pose2d pose = getPose();
-
-    // Vector from robot to target
-    Translation2d diff =
-        new Translation2d(x, y).minus(pose.getTranslation());
-
-    // Prevent undefined angle when on top of target
-    if (diff.getNorm() < 0.05) {
-        drive(0.0, 0.0, 0.0, true);
-        return;
-    }
-
-    // Desired robot heading
-    Rotation2d targetHeading = diff.getAngle();
-
-    // PID calculates shortest angular path
-    double omega =
-        m_turningController.calculate(
-            pose.getRotation().getRadians(),
-            targetHeading.getRadians()
-        );
-
-    // Clamp angular velocity
-    omega = MathUtil.clamp(
-        omega,
-        -DriveConstants.kMaxAngularSpeed,
-        DriveConstants.kMaxAngularSpeed
+        pose
     );
-
-    // Rotate in place, field-relative
-    drive(0.0, 0.0, omega, true);
 }
+
+  
+
+//   public void turnToFieldPoint(double x, double y) {
+//     Pose2d pose = getPose();
+
+//     // Vector from robot to target
+//     Translation2d diff =
+//         new Translation2d(x, y).minus(pose.getTranslation());
+
+//     // Prevent undefined angle when on top of target
+//     if (diff.getNorm() < 0.05) {
+//         drive(0.0, 0.0, 0.0, true);
+//         return;
+//     }
+
+//     // Desired robot heading
+//     Rotation2d targetHeading = diff.getAngle();
+
+//     // PID calculates shortest angular path
+//     double omega =
+//         m_turningController.calculate(
+//             pose.getRotation().getRadians(),
+//             targetHeading.getRadians()
+//         );
+
+//     // Clamp angular velocity
+//     omega = MathUtil.clamp(
+//         omega,
+//         -DriveConstants.kMaxAngularSpeed,
+//         DriveConstants.kMaxAngularSpeed
+//     );
+
+//     // Rotate in place, field-relative
+//     drive(0.0, 0.0, omega, true);
+// }
 
 
   /**
@@ -280,13 +304,17 @@ StructArrayPublisher<Pose2d> arrayPublisher = NetworkTableInstance.getDefault()
   }
 
   /**
-   * Sets the wheels into an X formation to prevent movement.
+   * Returns the current positions of all SwerveModules.
+   *
+   * @return The current SwerveModule positions.
    */
-  public void setX() {
-    m_frontLeft.setDesiredState(new SwerveModuleState(0, Rotation2d.fromDegrees(45)));
-    m_frontRight.setDesiredState(new SwerveModuleState(0, Rotation2d.fromDegrees(-45)));
-    m_rearLeft.setDesiredState(new SwerveModuleState(0, Rotation2d.fromDegrees(-45)));
-    m_rearRight.setDesiredState(new SwerveModuleState(0, Rotation2d.fromDegrees(45)));
+  public SwerveModulePosition[] getModulePositions() {
+    return new SwerveModulePosition[] {
+        m_frontLeft.getPosition(),
+        m_frontRight.getPosition(),
+        m_rearLeft.getPosition(),
+        m_rearRight.getPosition()
+    };
   }
 
   /**
