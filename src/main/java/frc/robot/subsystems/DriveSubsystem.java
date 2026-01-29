@@ -196,6 +196,41 @@ public void periodic() {
     );
 }
 
+public static void turnToAngle(double targetAngleDeg) {
+  
+
+}
+
+
+
+public static Pose2d getRobotPoseFromFieldPoint(
+    Translation2d fieldPoint,
+    double distanceMeters,
+    double relativeAngleDeg,
+    double robotYawDeg) 
+    {
+    // Convert to field-relative bearing
+    double bearingRad =
+        Math.toRadians(robotYawDeg + relativeAngleDeg);
+
+    // Robot → point vector in field frame
+    Translation2d robotToPoint =
+        new Translation2d(
+            distanceMeters * Math.cos(bearingRad),
+            distanceMeters * Math.sin(bearingRad)
+        );
+
+    // Robot position in field frame
+    Translation2d robotPosition =
+        fieldPoint.minus(robotToPoint);
+
+    return new Pose2d(
+        robotPosition,
+        Rotation2d.fromDegrees(robotYawDeg)
+    );
+}
+
+
 
   /**
    * Returns the currently-estimated pose of the robot.
